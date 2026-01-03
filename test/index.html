@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile App Tester - Backend Sync</title>
+    <style>
+        :root { --primary: #6200EE; --secondary: #03DAC6; --bg: #F5F5F5; }
+        body { font-family: 'Roboto', sans-serif; background: var(--bg); margin: 0; display: flex; justify: center; }
+        #app-container { width: 100%; max-width: 450px; height: 95vh; background: white; border: 8px solid #333; border-radius: 30px; margin: 20px; overflow: hidden; position: relative; display: flex; flex-direction: column; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        
+        /* Typography & Components */
+        .screen { display: none; flex-direction: column; height: 100%; overflow-y: auto; padding: 20px; box-sizing: border-box; }
+        .active { display: flex; }
+        .app-bar { background: var(--primary); color: white; padding: 15px; font-weight: bold; display: flex; align-items: center; gap: 10px; }
+        
+        .card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 5px solid var(--primary); }
+        
+        .btn-delete { background: none; border: none; color: var(--error); cursor: pointer; font-size: 18px; padding: 5px; position: absolute; top: 10px; right: 10px; }
+        .btn-delete:hover { opacity: 0.7; }
+        
+        .fab { position: absolute; bottom: 30px; right: 20px; width: 56px; height: 56px; background: var(--secondary); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: black; font-size: 24px; cursor: pointer; border: none; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        
+        /* Forms */
+        input, select, textarea { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        button.btn-primary { background: var(--primary); color: white; border: none; padding: 12px; border-radius: 8px; width: 100%; font-weight: bold; cursor: pointer; }
+        
+        .chip-container { display: flex; gap: 8px; margin-bottom: 15px; }
+        .chip { padding: 6px 15px; border-radius: 20px; background: #e0e0e0; font-size: 13px; cursor: pointer; }
+        .chip.active { background: var(--primary); color: white; }
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+    
+    <div id="screen-login" class="screen active">
+        <div style="text-align:center; margin: 40px 0;">
+            <div style="width:80px; height:80px; background:var(--primary); border-radius:20px; margin:auto;"></div>
+            <h2>App Logo</h2>
+        </div>
+        <input type="text" id="login-user" placeholder="Username" maxlength="25">
+        <input type="password" id="login-pass" placeholder="Password" maxlength="12">
+        <button class="btn-primary" onclick="handleLogin()">LOGIN</button>
+    </div>
+
+    <div id="screen-dashboard" class="screen">
+        <div class="app-bar">Dashboard <span style="flex:1"></span> <button onclick="logout()" style="background:none; border:none; color:white; cursor:pointer">Logout</button></div>
+        <div style="display:flex; gap:10px; margin-top:20px">
+            <div class="card" style="flex:1; border-color:green">
+                <small>Active</small><h2 id="stat-aktif">0</h2>
+            </div>
+            <div class="card" style="flex:1; border-color:red">
+                <small>Expired</small><h2 id="stat-expired">0</h2>
+            </div>
+        </div>
+        <button class="card" onclick="navTo('screen-subs-list')" style="text-align:left; cursor:pointer">📂 Kelola Langganan</button>
+        <button class="card" onclick="navTo('screen-cust-list')" style="text-align:left; cursor:pointer">👥 Kelola Pelanggan</button>
+    </div>
+
+    <!-- SUBSCRIPTION -->
+    <div id="screen-subs-list" class="screen">
+        <div class="app-bar"><button onclick="navTo('screen-dashboard')" style="background:none; border:none; color:white">←</button> Langganan</div>
+        <div id="list-langganan" style="margin-top:15px"></div>
+        <button class="fab" onclick="openAddForm('subs')">+</button>
+    </div>
+
+    <div id="screen-subs-form" class="screen">
+        <div class="app-bar"><button onclick="navTo('screen-subs-list')" style="background:none; border:none; color:white">←</button> <span id="subs-form-title">Tambah Langganan</span></div>
+        <select id="s-jenis">
+            <option value="" disabled selected hidden>Pilih Jenis Langganan</option>
+            <option value="Harian">Harian</option>
+            <option value="Bulanan">Bulanan</option>
+            <option value="Tahunan">Tahunan</option>
+        </select>
+        <label><small>Harga (Angka)</small></label>
+        <input type="number" id="s-harga" placeholder="Contoh: 150000">
+        <button class="btn-primary" onclick="saveSubscription()">SIMPAN PAKET</button>
+    </div>
+
+    <!-- CUSTOMER -->
+    <div id="screen-cust-list" class="screen">
+        <div class="app-bar"><button onclick="navTo('screen-dashboard')" style="background:none; border:none; color:white">←</button> Pelanggan</div>
+        <input type="text" id="search-cust" placeholder="Cari nama..." oninput="fetchCustomers()">
+        <div class="chip-container">
+            <div class="chip active" onclick="filterCust('Semua', this)">Semua</div>
+            <div class="chip" onclick="filterCust('Aktif', this)">Aktif</div>
+            <div class="chip" onclick="filterCust('Tidak Aktif', this)">Tidak Aktif</div>
+        </div>
+        <div id="list-pelanggan"></div>
+        <button class="fab" onclick="openAddForm('cust')">+</button>
+    </div>
+
+    <div id="screen-cust-form" class="screen">
+        <div class="app-bar"><button onclick="navTo('screen-cust-list')" style="background:none; border:none; color:white">←</button> <span id="cust-form-title">Tambah Pelanggan</span></div>
+        <input type="text" id="f-nama" placeholder="Nama">
+        <input type="text" id="f-alamat" placeholder="Alamat">
+        <input type="text" id="f-kontak" placeholder="Kontak" maxlength="13">
+        <select id="f-id-langganan">
+            <option value="" disabled selected hidden>Pilih Paket Langganan</option>
+        </select>
+        <label><small>Tgl Mulai</small></label><input type="date" id="f-mulai">
+        <label><small>Tgl Selesai</small></label><input type="date" id="f-selesai">
+        <select id="f-status">
+            <option value="" disabled selected hidden>Pilih Status</option>
+            <option value="Aktif">Aktif</option>
+            <option value="Tidak Aktif">Tidak Aktif</option>
+        </select>
+        <button class="btn-primary" onclick="saveCustomer()">SIMPAN</button>
+    </div>
+
+</div>
+
+<script>
+    const API = "http://localhost:3000/api";
+    let TOKEN = localStorage.getItem('token');
+    let currentFilter = 'Semua';
+    let editId = null;
+
+    // --- FUNGSI NAVIGASI ---
+    function navTo(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+        
+        if(screenId === 'screen-dashboard') fetchStats();
+        if(screenId === 'screen-subs-list') fetchSubscriptions();
+        if(screenId === 'screen-cust-list') fetchCustomers();
+    }
+
+    // --- AUTHENTICATION ---
+    async function handleLogin() {
+        const username = document.getElementById('login-user').value;
+        const password = document.getElementById('login-pass').value;
+        
+        try {
+            const res = await fetch(`${API}/auth/login`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username, password})
+            });
+            
+            const data = await res.json();
+            
+            if (res.ok && data.token) {
+                TOKEN = data.token;
+                localStorage.setItem('token', TOKEN);
+                navTo('screen-dashboard');
+            } else { 
+                alert(data.message || "Login Gagal"); 
+            }
+        } catch (err) {
+            alert("Server tidak merespons. Pastikan backend sudah jalan.");
+        }
+    }
+
+    function logout() { 
+        localStorage.clear(); 
+        location.reload(); 
+    }
+
+    // --- FORM MANAGEMENT ---
+    function openAddForm(type) {
+        editId = null; 
+        if(type === 'subs') {
+            document.getElementById('subs-form-title').innerText = "Tambah Langganan";
+            document.getElementById('s-harga').value = "";
+            document.getElementById('s-jenis').selectedIndex = 0;
+            navTo('screen-subs-form');
+        } else {
+            document.getElementById('cust-form-title').innerText = "Tambah Pelanggan";
+            document.getElementById('f-nama').value = "";
+            document.getElementById('f-alamat').value = "";
+            document.getElementById('f-kontak').value = "";
+            document.getElementById('f-id-langganan').selectedIndex = 0;
+            document.getElementById('f-mulai').value = "";
+            document.getElementById('f-selesai').value = "";
+            document.getElementById('f-status').selectedIndex = 0;
+            navTo('screen-cust-form');
+        }
+    }
+
+    // --- SUBSCRIPTION CRUD ---
+    async function fetchSubscriptions() {
+        const res = await fetch(`${API}/langganan`, { headers: {'Authorization': `Bearer ${TOKEN}`} });
+        const data = await res.json();
+        const container = document.getElementById('list-langganan');
+        container.innerHTML = data.map(l => `
+            <div class="card">
+                <div style="display:flex; justify-content:space-between">
+                    <b>${l.Jenis}</b>
+                    <span>Rp ${Number(l.Harga).toLocaleString()}</span>
+                </div>
+                <button onclick="editSubscription(${l.Id_Langganan})">✏️</button>
+                <button onclick="deleteItem('langganan', ${l.Id_Langganan})">🗑️</button>
+            </div>
+        `).join('');
+    }
+
+    async function editSubscription(id) {
+        editId = id;
+        document.getElementById('subs-form-title').innerText = "Edit Langganan";
+        const res = await fetch(`${API}/langganan`, { headers: {'Authorization': `Bearer ${TOKEN}`} });
+        const subscription = await res.json();
+        const l = subscription.find(item => item.Id_Langganan === id);
+        if(l) {
+            document.getElementById('s-jenis').value = l.Jenis;
+            document.getElementById('s-harga').value = l.Harga;
+            navTo('screen-subs-form');
+        }
+    }
+
+    async function saveSubscription() {
+        const payload = { 
+            jenis: document.getElementById('s-jenis').value, 
+            harga: document.getElementById('s-harga').value 
+        };
+        const url = editId ? `${API}/langganan/${editId}` : `${API}/langganan`;
+        const method = editId ? 'PUT' : 'POST';
+
+        try {
+            const res = await fetch(url, {
+                method: method,
+                headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}`},
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                editId = null;
+                navTo('screen-subs-list');
+            } else {
+                const d = await res.json();
+                alert("Gagal: " + d.message);
+            }
+        } catch (e) { alert("Kesalahan koneksi"); }
+    }
+
+    // --- CUSTOMER CRUD ---
+    async function fetchCustomers() {
+        const search = document.getElementById('search-cust').value;
+        const res = await fetch(`${API}/pelanggan?search=${search}&status=${currentFilter}`, {
+            headers: {'Authorization': `Bearer ${TOKEN}`}
+        });
+        const data = await res.json();
+        const container = document.getElementById('list-pelanggan');
+        container.innerHTML = data.map(p => `
+            <div class="card">
+                <b>${p.Nama}</b> <br>
+                <small>${p.Nama_Langganan} | Selesai: ${p.Tgl_Selesai ? p.Tgl_Selesai.split('T')[0] : '-'}</small> <br>
+                <span style="color:${p.Status === 'Aktif' ? 'green' : 'red'}">• ${p.Status}</span>
+                <button onclick="editCustomer(${p.Id_Pelanggan})">✏️</button>
+                <button onclick="deleteItem('pelanggan', ${p.Id_Pelanggan})">🗑️</button>
+            </div>
+        `).join('');
+    }
+
+    async function loadLanggananDropdown(selectedId = null) {
+        const res = await fetch(`${API}/langganan`, { headers: {'Authorization': `Bearer ${TOKEN}`} });
+        const data = await res.json();
+        
+        // Gunakan placeholder hanya jika menambah data baru (selectedId kosong)
+        let html = `<option value="" disabled ${!selectedId ? 'selected' : ''} hidden>Pilih Paket Langganan</option>`;
+        
+        html += data.map(l => `
+            <option value="${l.Id_Langganan}" ${l.Id_Langganan == selectedId ? 'selected' : ''}>
+                ${l.Jenis}
+            </option>
+        `).join('');
+        
+        document.getElementById('f-id-langganan').innerHTML = html;
+    }
+
+    async function editCustomer(id) {
+        editId = id;
+        document.getElementById('cust-form-title').innerText = "Edit Pelanggan";
+        
+        const res = await fetch(`${API}/pelanggan`, { headers: {'Authorization': `Bearer ${TOKEN}`} });
+        const customers = await res.json();
+        const p = customers.find(item => item.Id_Pelanggan === id);
+
+        if(p) {
+            document.getElementById('f-nama').value = p.Nama;
+            document.getElementById('f-alamat').value = p.Alamat;
+            document.getElementById('f-kontak').value = p.Kontak;
+            document.getElementById('f-mulai').value = p.Tgl_Mulai.split('T')[0];
+            document.getElementById('f-selesai').value = p.Tgl_Selesai.split('T')[0];
+            document.getElementById('f-status').value = p.Status;
+
+            await loadLanggananDropdown(p.Id_Langganan);
+            
+            navTo('screen-cust-form');
+        }
+    }
+
+    async function saveCustomer() {
+        const tglMulai = document.getElementById('f-mulai').value;
+        const tglSelesai = document.getElementById('f-selesai').value;
+
+        // VALIDASI TANGGAL
+        if (new Date(tglSelesai) < new Date(tglMulai)) {
+            alert("Kesalahan: Tanggal Selesai tidak boleh lebih awal dari Tanggal Mulai!");
+            return;
+        }
+
+        const payload = {
+            nama: document.getElementById('f-nama').value,
+            alamat: document.getElementById('f-alamat').value,
+            kontak: document.getElementById('f-kontak').value,
+            id_langganan: document.getElementById('f-id-langganan').value,
+            tgl_mulai: tglMulai,
+            tgl_selesai: tglSelesai,
+            status: document.getElementById('f-status').value
+        };
+
+        const url = editId ? `${API}/pelanggan/${editId}` : `${API}/pelanggan`;
+        const method = editId ? 'PUT' : 'POST';
+
+        try {
+            const res = await fetch(url, {
+                method: method,
+                headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${TOKEN}`},
+                body: JSON.stringify(payload)
+            });
+            if(res.ok) {
+                editId = null;
+                navTo('screen-cust-list');
+            } else {
+                const d = await res.json();
+                alert(d.message);
+            }
+        } catch (e) { alert("Kesalahan sistem"); }
+    }
+
+    // --- SHARED UTILS ---
+    async function fetchStats() {
+        try {
+            const res = await fetch(`${API}/pelanggan`, { headers: {'Authorization': `Bearer ${TOKEN}`} });
+            const data = await res.json();
+            document.getElementById('stat-aktif').innerText = data.filter(p => p.Status === 'Aktif').length;
+            document.getElementById('stat-expired').innerText = data.filter(p => p.Status === 'Tidak Aktif').length;
+        } catch(e) { console.log("Gagal fetch stats"); }
+    }
+
+    async function deleteItem(type, id) {
+        if (!confirm(`Hapus data ${type} ini?`)) return;
+        try {
+            const res = await fetch(`${API}/${type}/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${TOKEN}` }
+            });
+            if (res.ok) {
+                if (type === 'langganan') fetchSubscriptions();
+                else fetchCustomers();
+            }
+        } catch (e) { alert("Gagal menghapus"); }
+    }
+
+    function filterCust(val, el) {
+        currentFilter = val;
+        document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        el.classList.add('active');
+        fetchCustomers();
+    }
+</script>
+</body>
+</html>
