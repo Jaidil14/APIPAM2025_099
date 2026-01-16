@@ -41,6 +41,16 @@ router.post('/', auth, async (req, res) => {
         });
     }
 
+    const namaRegex = /^[a-zA-Z\s]+$/;
+    if (!namaRegex.test(nama)) {
+        return res.status(400).json({ message: "Nama hanya boleh berisi huruf." });
+    }
+
+    const alamatRegex = /^[a-zA-Z0-9\s.,/-]+$/; 
+    if (!alamatRegex.test(alamat)) {
+        return res.status(400).json({ message: "Format alamat tidak valid." });
+    }
+
     try {
         const sql = `INSERT INTO Tabel_Pelanggan (Nama, Alamat, Kontak, Tgl_Mulai, Tgl_Selesai, Status, Id_Langganan) VALUES (?, ?, ?, ?, ?, ?, ?)`;
         await db.execute(sql, [nama, alamat, kontak, tgl_mulai, tgl_selesai, status, id_langganan]);
@@ -66,6 +76,16 @@ router.put('/:id', auth, async (req, res) => {
         });
     }
 
+    const namaRegex = /^[a-zA-Z\s]+$/;
+    if (!namaRegex.test(nama)) {
+        return res.status(400).json({ message: "Nama hanya boleh berisi huruf." });
+    }
+
+    const alamatRegex = /^[a-zA-Z0-9\s.,/-]+$/; 
+    if (!alamatRegex.test(alamat)) {
+        return res.status(400).json({ message: "Format alamat tidak valid." });
+    }
+    
     try {
         const sql = `UPDATE Tabel_Pelanggan SET Nama=?, Alamat=?, Kontak=?, Tgl_Mulai=?, Tgl_Selesai=?, Status=?, Id_Langganan=? WHERE Id_Pelanggan=?`;
         await db.execute(sql, [nama, alamat, kontak, tgl_mulai, tgl_selesai, status, id_langganan, req.params.id]);
