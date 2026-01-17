@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../config/db');
 const auth = require('../middleware/auth');
+const { checkExpiredSubscriptions } = require('../utils/scheduler');
 
 // LIHAT DATA (dengan Search & Filter)
 router.get('/', auth, async (req, res) => {
@@ -112,4 +113,13 @@ router.delete('/:id', auth, async (req, res) => {
     }
 });
 
+// Endpoint Khusus Testing (Nanti bisa dihapus saat production)
+router.post('/test-auto-expire', auth, async (req, res) => {
+    try {
+        await checkExpiredSubscriptions(); // Paksa jalankan fungsi sekarang
+        res.json({ message: "Pengecekan expired manual berhasil dijalankan. Cek terminal backend untuk log." });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 module.exports = router;
